@@ -1,9 +1,13 @@
 import numpy as np
 import pandas as pd
 
+from src.data import load_raw, merge_tables, resolve_data_dir
 from src.features import (
+    DROP_COLS,
+    add_engineered,
     add_target,
     add_tenure,
+    build_features,
     clean_total_charges,
     fill_missing_services,
 )
@@ -81,3 +85,34 @@ def test_functions_do_not_mutate_input():
     add_tenure(df, CUTOFF)
     clean_total_charges(df)
     pd.testing.assert_frame_equal(df, before)
+
+
+def test_add_engineered_counts_services():
+    df = add_engineered(fill_missing_services(merged_sample()))
+    # A: 3 servicios adicionales + teléfono + internet; B: solo teléfono; C: solo internet
+    assert list(df["n_services"]) == [5, 1, 1]
+    assert list(df["has_internet"]) == [1, 0, 1]
+    assert list(df["has_phone"]) == [1, 1, 0]
+
+
+def test_build_features_drops_leaky_and_id_columns():
+    df = build_features(merged_sample(), CUTOFF)
+    for col in DROP_COLS:
+        assert col not in df.columns
+    assert {"churn", "tenure_days", "n_services"} <= set(df.columns)
+    assert not df.isna().any().any()
+
+
+def test_build_features_does_not_mutate_input():
+    df = merged_sample()
+    before = df.copy()
+    build_features(df, CUTOFF)
+    pd.testing.assert_frame_equal(df, before)
+
+
+def test_build_features_on_real_data():
+    df = build_features(merge_tables(load_raw(resolve_data_dir())), CUTOFF)
+    assert len(df) == 7043
+    assert not df.isna().any().any()
+    assert set(df["churn"].unique()) == {0, 1}
+    assert (df["tenure_days"] >= 0).all()

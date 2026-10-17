@@ -38,3 +38,27 @@ def clean_total_charges(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     out["TotalCharges"] = pd.to_numeric(out["TotalCharges"], errors="coerce").fillna(0.0)
     return out
+
+
+DROP_COLS = ["customerID", "BeginDate", "EndDate"]
+
+
+def add_engineered(df: pd.DataFrame) -> pd.DataFrame:
+    """Indicadores de servicio y número total de servicios contratados."""
+    out = df.copy()
+    out["has_internet"] = (out["InternetService"] != "No internet").astype(int)
+    out["has_phone"] = (out["MultipleLines"] != "No phone").astype(int)
+    out["n_services"] = (
+        (out[ADDON_COLS] == "Yes").sum(axis=1) + out["has_internet"] + out["has_phone"]
+    ).astype(int)
+    return out
+
+
+def build_features(df: pd.DataFrame, cutoff: str) -> pd.DataFrame:
+    """Aplica toda la preparación y quita ID y fechas (para evitar fugas)."""
+    out = fill_missing_services(df)
+    out = add_target(out)
+    out = add_tenure(out, cutoff)
+    out = clean_total_charges(out)
+    out = add_engineered(out)
+    return out.drop(columns=DROP_COLS)

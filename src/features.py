@@ -19,6 +19,8 @@ def fill_missing_services(df: pd.DataFrame) -> pd.DataFrame:
 def add_target(df: pd.DataFrame) -> pd.DataFrame:
     """churn = 1 si EndDate es una fecha, 0 si es 'No'."""
     out = df.copy()
+    if out["EndDate"].isna().any():
+        raise ValueError("EndDate tiene valores vacíos: no se puede definir el target")
     out["churn"] = (out["EndDate"] != "No").astype(int)
     return out
 
@@ -29,6 +31,8 @@ def add_tenure(df: pd.DataFrame, cutoff: str) -> pd.DataFrame:
     begin = pd.to_datetime(out["BeginDate"], format="ISO8601")
     end = pd.to_datetime(out["EndDate"].mask(out["EndDate"] == "No"), format="ISO8601")
     end = end.fillna(pd.Timestamp(cutoff))
+    if (end < begin).any():
+        raise ValueError("Hay contratos que terminan antes de empezar: revisa la fecha de corte")
     out["tenure_days"] = (end - begin).dt.days.astype(int)
     return out
 

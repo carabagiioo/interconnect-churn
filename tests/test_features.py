@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from src.data import load_raw, merge_tables, resolve_data_dir
 from src.features import (
@@ -84,6 +85,7 @@ def test_functions_do_not_mutate_input():
     add_target(df)
     add_tenure(df, CUTOFF)
     clean_total_charges(df)
+    add_engineered(fill_missing_services(df))
     pd.testing.assert_frame_equal(df, before)
 
 
@@ -116,3 +118,17 @@ def test_build_features_on_real_data():
     assert not df.isna().any().any()
     assert set(df["churn"].unique()) == {0, 1}
     assert (df["tenure_days"] >= 0).all()
+
+
+def test_add_target_rejects_missing_enddate():
+    df = merged_sample()
+    df.loc[0, "EndDate"] = np.nan
+    with pytest.raises(ValueError):
+        add_target(df)
+
+
+def test_add_tenure_rejects_begin_after_cutoff():
+    df = merged_sample()
+    df.loc[2, "BeginDate"] = "2020-03-01"
+    with pytest.raises(ValueError):
+        add_tenure(df, CUTOFF)
